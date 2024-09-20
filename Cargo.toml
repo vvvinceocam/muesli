@@ -1,0 +1,21 @@
+[package]
+name = "muesli"
+version = "0.0.1"
+authors = ["vvvince <vvvince@ofcompute.rs>"]
+edition = "2021"
+rust-version = "1.79"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/vvvinceocam/muesli"
+keywords = ["serialization", "parser", "php"]
+
+[dependencies]
+winnow = { version = "0.6.18", features = ["simd"] }
+
+[dev-dependencies]
+criterion = "0.5.1"
+proptest = "1.5.0"
+
+[[bench]]
+name = "session"
+harness = false

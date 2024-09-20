@@ -1,0 +1,17 @@
+# Rust
+/target
+/.cargo
+/.rust-src
+
+# devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
+
+# Editors
+/.idea
