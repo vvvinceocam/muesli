@@ -21,7 +21,10 @@
       cargo watch -c --why -i devenv.nix -i devenv.lock -i .direnv -i .devenv \
           -x 'clippy --all-targets --all-features -- -Dclippy::all -Dclippy::pedantic' \
           -x build  \
-          -x 'nextest run'
+          -x 'nextest run' \
+          -x 'test --doc' \
+          -x 'test --examples' \
+          -x doc
       '';
     };
   };
