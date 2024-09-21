@@ -20,11 +20,23 @@
       exec = ''
       cargo watch -c --why -i devenv.nix -i devenv.lock -i .direnv -i .devenv \
           -x 'clippy --all-targets --all-features -- -Dclippy::all -Dclippy::pedantic' \
-          -x build  \
-          -x 'nextest run' \
-          -x 'test --doc' \
-          -x 'test --examples' \
-          -x doc
+          -x build \
+          -x 'nextest run'
+      '';
+    };
+
+    alltests = {
+      description = ''
+      run all tests
+      '';
+      exec = ''
+      #!/usr/bin/env bash
+      set -euxo pipefail
+
+      cargo build
+      cargo nextest run
+      cargo test --examples
+      cargo test --doc
       '';
     };
   };
@@ -32,6 +44,7 @@
   pre-commit.hooks = {
     cargo-check.enable = true;
     clippy.enable = true;
+    clippy.entry = "cargo clippy --all-targets --all-features -- -Dclippy::all -Dclippy::pedantic";
     commitizen.enable = true;
     markdownlint = {
       enable = true;
@@ -47,7 +60,7 @@
     rust-tests = {
       enable = true;
       name = "Rust unit tests";
-      entry = "cargo nextest run";
+      entry = "alltests";
       files = "\\.rs$";
     };
   };
