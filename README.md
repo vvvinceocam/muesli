@@ -6,6 +6,8 @@
 > healthy implementation of PHP's serialization and session formats in Rust
 
 [![Made With Rust][made-with-rust]][rust]
+[![Crates.io][badge-crates.io]][muesli-crates.io]
+[![Docs.rs][badge-docs.rs]][muesli-docs.rs]
 
 *muesli* is Rust implementation of PHP's [`serialize()`][php-serialize], [`unserialize()`][php-unserialize],
 [`session_encode()`][php-session-encode], and [`session_decode()`][php-session-decode] functions.
@@ -17,6 +19,12 @@ Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
 muesli = "0.0.1"
+```
+
+or run:
+
+```bash
+cargo add muesli
 ```
 
 ## Usage
@@ -42,7 +50,7 @@ fn main() {
 
     let mut session = Vec::<u8>::new();
     session_encode(&mut session, &data).unwrap();
-    assert_eq!(session,  b"foo|i:42;bar|s:3:\"baz\";".as_slice());
+    assert_eq!(session, b"foo|i:42;bar|s:7:\"baz|qux\";pub|i:1337;".as_slice());
 }
 ```
 
@@ -69,3 +77,7 @@ devloop
 [php-session-encode]: https://www.php.net/manual/en/function.session-encode.php
 [php-session-decode]: https://www.php.net/manual/en/function.session-decode.php
 [made-with-rust]: https://img.shields.io/badge/rust-1.79.0-f04041?style=for-the-badge&labelColor=c0282d&logo=rust 'Made With Rust'
+[badge-crates.io]: https://img.shields.io/badge/crates.io-v0.0.1-orange.svg?style=for-the-badge 'View on crates.rs'
+[muesli-crates.io]: https://crates.io/crates/muesli
+[badge-docs.rs]: https://img.shields.io/badge/docs.rs-muesli-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs 'Read doc on docs.rs'
+[muesli-docs.rs]: https://docs.rs/muesli
