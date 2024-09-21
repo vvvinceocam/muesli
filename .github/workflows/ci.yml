@@ -21,5 +21,9 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -Dclippy::all -Dclippy::pedantic
       - name: Test suite
         run: cargo nextest run
+      - name: Run examples
+        run: cargo test --examples
+      - name: Run doc snippets
+        run: cargo test --doc
       - name: Vulnerability check
         run: cargo audit
