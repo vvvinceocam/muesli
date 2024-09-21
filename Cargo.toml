@@ -1,5 +1,6 @@
 [package]
 name = "muesli"
+description = "healthy implementation of PHP's serialization and session formats in Rust"
 version = "0.0.1"
 authors = ["vvvince <vvvince@ofcompute.rs>"]
 edition = "2021"
@@ -8,6 +9,11 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/vvvinceocam/muesli"
 keywords = ["serialization", "parser", "php"]
+exclude = [
+    ".envrc",
+    "devenv.*",
+    ".github/"
+]
 
 [dependencies]
 winnow = { version = "0.6.18", features = ["simd"] }
@@ -19,3 +25,4 @@ proptest = "1.5.0"
 [[bench]]
 name = "session"
 harness = false
+
