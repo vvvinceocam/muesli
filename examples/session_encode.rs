@@ -18,5 +18,8 @@ fn main() {
 
     let mut session = Vec::<u8>::new();
     session_encode(&mut session, &data).unwrap();
-    assert_eq!(session, b"foo|i:42;bar|s:3:\"baz\";".as_slice());
+    assert_eq!(
+        session,
+        b"foo|i:42;bar|s:7:\"baz|qux\";pub|i:1337;".as_slice()
+    );
 }
