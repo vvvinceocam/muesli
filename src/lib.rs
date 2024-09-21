@@ -9,7 +9,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! muesli = "0.0.1"
+//! muesli = "0.0.2"
 //! ```
 //!
 //! or run:
