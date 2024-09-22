@@ -4,7 +4,7 @@ fn main() {
     let data = vec![
         SessionEntry {
             key: b"foo",
-            value: Value::Integer(42),
+            value: Value::Long(42),
         },
         SessionEntry {
             key: b"bar",
@@ -12,7 +12,7 @@ fn main() {
         },
         SessionEntry {
             key: b"pub",
-            value: Value::Integer(1337),
+            value: Value::Long(1337),
         },
     ];
 

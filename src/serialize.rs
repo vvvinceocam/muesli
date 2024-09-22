@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::value::{ArrayKey, SessionEntry, Value};
+use crate::value::{ArrayEntry, ArrayKey, SessionEntry, Value};
 
 /// Encode data to PHP's `serialize` format
 ///
@@ -12,8 +12,8 @@ pub fn serialize<W: Write>(w: &mut W, value: &Value) -> std::result::Result<usiz
         Value::Null => w.write(b"N;"),
         Value::Boolean(false) => w.write(b"b:0;"),
         Value::Boolean(true) => w.write(b"b:1;"),
-        Value::Integer(n) => w.write(format!("i:{n};").as_bytes()),
-        Value::Decimal(d) => {
+        Value::Long(n) => w.write(format!("i:{n};").as_bytes()),
+        Value::Double(d) => {
             if d.is_nan() {
                 w.write(b"d:NAN;")
             } else if d.is_infinite() {
@@ -36,9 +36,9 @@ pub fn serialize<W: Write>(w: &mut W, value: &Value) -> std::result::Result<usiz
         Value::Array(items) => {
             let mut count = 0;
             count += w.write(format!("a:{}:{{", items.len()).as_bytes())?;
-            for (key, value) in items {
+            for ArrayEntry { key, value } in items {
                 match key {
-                    ArrayKey::Integer(key) => {
+                    ArrayKey::Long(key) => {
                         count += w.write(format!("i:{key};").as_bytes())?;
                     }
                     ArrayKey::String(key) => {
@@ -121,10 +121,10 @@ mod tests {
     #[test]
     fn encode_value_integer() {
         let cases = [
-            (Value::Integer(0), b"i:0;".as_slice()),
-            (Value::Integer(123), b"i:123;".as_slice()),
-            (Value::Integer(-23), b"i:-23;".as_slice()),
-            (Value::Integer(-23_432_123), b"i:-23432123;".as_slice()),
+            (Value::Long(0), b"i:0;".as_slice()),
+            (Value::Long(123), b"i:123;".as_slice()),
+            (Value::Long(-23), b"i:-23;".as_slice()),
+            (Value::Long(-23_432_123), b"i:-23432123;".as_slice()),
         ];
         run_encode_cases(&cases);
     }
@@ -132,12 +132,12 @@ mod tests {
     #[test]
     fn encode_value_decimal() {
         let cases = [
-            (Value::Decimal(0.0), b"d:0;".as_slice()),
-            (Value::Decimal(0.2), b"d:0.2;".as_slice()),
-            (Value::Decimal(-0.2), b"d:-0.2;".as_slice()),
-            (Value::Decimal(f64::NAN), b"d:NAN;".as_slice()),
-            (Value::Decimal(f64::INFINITY), b"d:INF;".as_slice()),
-            (Value::Decimal(f64::NEG_INFINITY), b"d:-INF;".as_slice()),
+            (Value::Double(0.0), b"d:0;".as_slice()),
+            (Value::Double(0.2), b"d:0.2;".as_slice()),
+            (Value::Double(-0.2), b"d:-0.2;".as_slice()),
+            (Value::Double(f64::NAN), b"d:NAN;".as_slice()),
+            (Value::Double(f64::INFINITY), b"d:INF;".as_slice()),
+            (Value::Double(f64::NEG_INFINITY), b"d:-INF;".as_slice()),
         ];
         run_encode_cases(&cases);
     }
@@ -171,26 +171,47 @@ mod tests {
         let cases = [
             (Value::Array(vec![]), b"a:0:{}".as_slice()),
             (
-                Value::Array(vec![(ArrayKey::String(b"foo"), Value::String(b"bar"))]),
+                Value::Array(vec![ArrayEntry {
+                    key: ArrayKey::String(b"foo"),
+                    value: Value::String(b"bar"),
+                }]),
                 b"a:1:{s:3:\"foo\";s:3:\"bar\";}".as_slice(),
             ),
             (
-                Value::Array(vec![(
-                    ArrayKey::Integer(0),
-                    Value::Array(vec![(
-                        ArrayKey::Integer(0),
-                        Value::Array(vec![(ArrayKey::Integer(0), Value::Array(vec![]))]),
-                    )]),
-                )]),
+                Value::Array(vec![ArrayEntry {
+                    key: ArrayKey::Long(0),
+                    value: Value::Array(vec![ArrayEntry {
+                        key: ArrayKey::Long(0),
+                        value: Value::Array(vec![ArrayEntry {
+                            key: ArrayKey::Long(0),
+                            value: Value::Array(vec![]),
+                        }]),
+                    }]),
+                }]),
                 b"a:1:{i:0;a:1:{i:0;a:1:{i:0;a:0:{}}}}".as_slice(),
             ),
             (
                 Value::Array(vec![
-                    (ArrayKey::Integer(0), Value::Integer(1)),
-                    (ArrayKey::Integer(1), Value::Integer(1)),
-                    (ArrayKey::Integer(2), Value::Integer(2)),
-                    (ArrayKey::Integer(3), Value::Integer(3)),
-                    (ArrayKey::Integer(4), Value::Integer(5)),
+                    ArrayEntry {
+                        key: ArrayKey::Long(0),
+                        value: Value::Long(1),
+                    },
+                    ArrayEntry {
+                        key: ArrayKey::Long(1),
+                        value: Value::Long(1),
+                    },
+                    ArrayEntry {
+                        key: ArrayKey::Long(2),
+                        value: Value::Long(2),
+                    },
+                    ArrayEntry {
+                        key: ArrayKey::Long(3),
+                        value: Value::Long(3),
+                    },
+                    ArrayEntry {
+                        key: ArrayKey::Long(4),
+                        value: Value::Long(5),
+                    },
                 ]),
                 b"a:5:{i:0;i:1;i:1;i:1;i:2;i:2;i:3;i:3;i:4;i:5;}".as_slice(),
             ),
@@ -205,7 +226,7 @@ mod tests {
             (
                 vec![SessionEntry {
                     key: b"foo",
-                    value: Value::Integer(42),
+                    value: Value::Long(42),
                 }],
                 b"foo|i:42;".as_slice(),
             ),
@@ -213,7 +234,7 @@ mod tests {
                 vec![
                     SessionEntry {
                         key: b"foo",
-                        value: Value::Integer(42),
+                        value: Value::Long(42),
                     },
                     SessionEntry {
                         key: b"bar",
@@ -226,7 +247,7 @@ mod tests {
                 vec![
                     SessionEntry {
                         key: b"foo",
-                        value: Value::Integer(42),
+                        value: Value::Long(42),
                     },
                     SessionEntry {
                         key: b"bar",
@@ -234,7 +255,7 @@ mod tests {
                     },
                     SessionEntry {
                         key: b"pub",
-                        value: Value::Integer(1337),
+                        value: Value::Long(1337),
                     },
                 ],
                 b"foo|i:42;bar|s:7:\"baz|qux\";pub|i:1337;".as_slice(),

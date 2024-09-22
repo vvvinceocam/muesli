@@ -26,7 +26,7 @@
 //! let data = vec![
 //!     SessionEntry {
 //!         key: b"foo",
-//!         value: Value::Integer(42),
+//!         value: Value::Long(42),
 //!     },
 //!     SessionEntry {
 //!         key: b"bar",
@@ -34,7 +34,7 @@
 //!     },
 //!     SessionEntry {
 //!         key: b"pub",
-//!         value: Value::Integer(1337),
+//!         value: Value::Long(1337),
 //!     },
 //! ];
 //!
@@ -48,10 +48,10 @@
 //! [php-session-encode]: https://www.php.net/manual/en/function.session-encode.php
 //! [php-session-decode]: https://www.php.net/manual/en/function.session-decode.php
 
-mod de;
-mod ser;
+mod deserialize;
+mod serialize;
 pub mod value;
 
-pub use de::{session_decode, unserialize};
-pub use ser::{serialize, session_encode};
+pub use deserialize::{session_decode, unserialize};
+pub use serialize::{serialize, session_encode};
 pub use value::*;

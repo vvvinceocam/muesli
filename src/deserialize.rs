@@ -9,14 +9,16 @@ use winnow::{
     PResult, Parser,
 };
 
-use crate::value::{ArrayKey, ObjectProperty, ObjectPropertyVisibility, SessionEntry, Value};
+use crate::value::{
+    ArrayEntry, ArrayKey, ObjectProperty, ObjectPropertyVisibility, SessionEntry, Value,
+};
 
 fn any_value<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
     alt((
         value_null,
         value_boolean,
-        value_integer,
-        value_decimal,
+        value_long,
+        value_double,
         value_string,
         value_array,
         value_object,
@@ -37,14 +39,14 @@ fn value_boolean<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
         .parse_next(input)
 }
 
-fn value_integer<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_long<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
     delimited(b"i:", raw::signed_integer, b';')
         .parse_to()
-        .map(Value::Integer)
+        .map(Value::Long)
         .parse_next(input)
 }
 
-fn value_decimal<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_double<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
     delimited(
         b"d:",
         alt((
@@ -55,7 +57,7 @@ fn value_decimal<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
         )),
         b';',
     )
-    .map(Value::Decimal)
+    .map(Value::Double)
     .parse_next(input)
 }
 
@@ -69,20 +71,22 @@ fn array_key<'s>(input: &mut &'s [u8]) -> PResult<ArrayKey<'s>> {
     alt((
         delimited(b"i:", raw::signed_integer, b';')
             .parse_to()
-            .map(ArrayKey::Integer),
+            .map(ArrayKey::Long),
         delimited(b"s:", raw::sized_string, b';').map(ArrayKey::String),
     ))
     .parse_next(input)
 }
 
-fn array_pair<'s>(input: &mut &'s [u8]) -> PResult<(ArrayKey<'s>, Value<'s>)> {
-    (array_key, any_value).parse_next(input)
+fn array_entry<'s>(input: &mut &'s [u8]) -> PResult<ArrayEntry<'s>> {
+    (array_key, any_value)
+        .map(|(key, value)| ArrayEntry { key, value })
+        .parse_next(input)
 }
 
 fn value_array<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
     delimited(
         b"a:",
-        length_repeat(terminated(raw::size, b":{"), array_pair),
+        length_repeat(terminated(raw::size, b":{"), array_entry),
         b'}',
     )
     .map(Value::Array)
@@ -254,65 +258,47 @@ mod tests {
     #[test]
     fn parse_positive_integer_value() {
         let cases = [
-            (
-                b"i:0;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(0))),
-            ),
-            (
-                b"i:1;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(1))),
-            ),
-            (
-                b"i:01;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(1))),
-            ),
-            (
-                b"i:23;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(23))),
-            ),
+            (b"i:0;".as_slice(), Some((b"".as_slice(), Value::Long(0)))),
+            (b"i:1;".as_slice(), Some((b"".as_slice(), Value::Long(1)))),
+            (b"i:01;".as_slice(), Some((b"".as_slice(), Value::Long(1)))),
+            (b"i:23;".as_slice(), Some((b"".as_slice(), Value::Long(23)))),
             (
                 b"i:1234567890;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(1_234_567_890))),
+                Some((b"".as_slice(), Value::Long(1_234_567_890))),
             ),
             (
                 b"i:1234567890;extra".as_slice(),
-                Some((b"extra".as_slice(), Value::Integer(1_234_567_890))),
+                Some((b"extra".as_slice(), Value::Long(1_234_567_890))),
             ),
         ];
 
-        run_cases(value_integer, &cases);
+        run_cases(value_long, &cases);
     }
 
     #[test]
     fn parse_negative_integer_value() {
         let cases = [
-            (
-                b"i:-0;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(0))),
-            ),
-            (
-                b"i:-1;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(-1))),
-            ),
+            (b"i:-0;".as_slice(), Some((b"".as_slice(), Value::Long(0)))),
+            (b"i:-1;".as_slice(), Some((b"".as_slice(), Value::Long(-1)))),
             (
                 b"i:-01;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(-1))),
+                Some((b"".as_slice(), Value::Long(-1))),
             ),
             (
                 b"i:-23;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(-23))),
+                Some((b"".as_slice(), Value::Long(-23))),
             ),
             (
                 b"i:-1234567890;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(-1_234_567_890))),
+                Some((b"".as_slice(), Value::Long(-1_234_567_890))),
             ),
             (
                 b"i:-1234567890;extra".as_slice(),
-                Some((b"extra".as_slice(), Value::Integer(-1_234_567_890))),
+                Some((b"extra".as_slice(), Value::Long(-1_234_567_890))),
             ),
         ];
 
-        run_cases(value_integer, &cases);
+        run_cases(value_long, &cases);
     }
 
     #[test]
@@ -320,32 +306,32 @@ mod tests {
         let cases = [
             (
                 b"d:0.0;".as_slice(),
-                Some((b"".as_slice(), Value::Decimal(0.0))),
+                Some((b"".as_slice(), Value::Double(0.0))),
             ),
             (
                 b"d:-1.0;".as_slice(),
-                Some((b"".as_slice(), Value::Decimal(-1.0))),
+                Some((b"".as_slice(), Value::Double(-1.0))),
             ),
             (
                 b"d:INF;".as_slice(),
-                Some((b"".as_slice(), Value::Decimal(f64::INFINITY))),
+                Some((b"".as_slice(), Value::Double(f64::INFINITY))),
             ),
             (
                 b"d:-INF;".as_slice(),
-                Some((b"".as_slice(), Value::Decimal(f64::NEG_INFINITY))),
+                Some((b"".as_slice(), Value::Double(f64::NEG_INFINITY))),
             ),
         ];
 
-        run_cases(value_decimal, &cases);
+        run_cases(value_double, &cases);
     }
 
     #[test]
     fn parse_nan_decimal_value() {
         let mut input = b"d:NAN;".as_slice();
 
-        let output = value_decimal.parse_next(&mut input).unwrap();
+        let output = value_double.parse_next(&mut input).unwrap();
         match output {
-            Value::Decimal(d) => assert!(d.is_nan()),
+            Value::Double(d) => assert!(d.is_nan()),
             _ => panic!("should have been a decimal"),
         }
     }
@@ -371,25 +357,31 @@ mod tests {
     }
 
     #[test]
-    fn parse_array_pair() {
+    fn parse_array_entries() {
         let cases = [
             (
                 b"s:10:\"1234567890\";i:10;".as_slice(),
                 Some((
                     b"".as_slice(),
-                    (ArrayKey::String("1234567890".as_ref()), Value::Integer(10)),
+                    ArrayEntry {
+                        key: ArrayKey::String("1234567890".as_ref()),
+                        value: Value::Long(10),
+                    },
                 )),
             ),
             (
                 b"i:10;s:10:\"1234567890\";".as_slice(),
                 Some((
                     b"".as_slice(),
-                    (ArrayKey::Integer(10), Value::String("1234567890".as_ref())),
+                    ArrayEntry {
+                        key: ArrayKey::Long(10),
+                        value: Value::String("1234567890".as_ref()),
+                    },
                 )),
             ),
         ];
 
-        run_cases(array_pair, &cases);
+        run_cases(array_entry, &cases);
     }
 
     #[test]
@@ -400,7 +392,10 @@ mod tests {
                 Some((
                     b"".as_slice(),
                     Value::Array(vec![
-                        (ArrayKey::String(b"foo"), Value::String(b"bar"))
+                        ArrayEntry {
+                            key: ArrayKey::String(b"foo"),
+                            value: Value::String(b"bar"),
+                        },
                     ]),
                 )),
             ),
@@ -409,7 +404,10 @@ mod tests {
                 Some((
                     b"".as_slice(),
                     Value::Array(vec![
-                        (ArrayKey::Integer(3), Value::String(b"baz"))
+                        ArrayEntry {
+                            key: ArrayKey::Long(3),
+                            value: Value::String(b"baz"),
+                        },
                     ]),
                 )),
             ),
@@ -418,14 +416,23 @@ mod tests {
                 Some((
                     b"".as_slice(),
                     Value::Array(vec![
-                        (ArrayKey::Integer(12), Value::Decimal(0.12)),
-                        (ArrayKey::String(b"foo"), Value::Array(vec![
-                            (
-                                ArrayKey::String(b"some-value"),
-                                Value::String(r#""other";"value""#.as_bytes())
-                            )
-                        ])),
-                        (ArrayKey::Integer(43), Value::Integer(76)),
+                        ArrayEntry {
+                            key: ArrayKey::Long(12),
+                            value: Value::Double(0.12),
+                        },
+                        ArrayEntry {
+                            key: ArrayKey::String(b"foo"),
+                            value: Value::Array(vec![
+                                ArrayEntry {
+                                    key: ArrayKey::String(b"some-value"),
+                                    value: Value::String(r#""other";"value""#.as_bytes()),
+                                },
+                            ])
+                        },
+                        ArrayEntry {
+                            key: ArrayKey::Long(43),
+                            value: Value::Long(76),
+                        },
                     ]),
                 )),
             ),
@@ -444,7 +451,7 @@ mod tests {
                     ObjectProperty {
                         name: b"public".as_slice(),
                         visibility: ObjectPropertyVisibility::Public,
-                        value: Value::Integer(1),
+                        value: Value::Long(1),
                     },
                 )),
             ),
@@ -455,7 +462,7 @@ mod tests {
                     ObjectProperty {
                         name: b"protected".as_slice(),
                         visibility: ObjectPropertyVisibility::Protected,
-                        value: Value::Integer(42),
+                        value: Value::Long(42),
                     },
                 )),
             ),
@@ -488,17 +495,17 @@ mod tests {
                             ObjectProperty {
                                 name: b"public".as_slice(),
                                 visibility: ObjectPropertyVisibility::Public,
-                                value: Value::Integer(1),
+                                value: Value::Long(1),
                             },
                             ObjectProperty {
                                 name: b"protected".as_slice(),
                                 visibility: ObjectPropertyVisibility::Protected,
-                                value: Value::Integer(2),
+                                value: Value::Long(2),
                             },
                             ObjectProperty {
                                 name: b"private".as_slice(),
                                 visibility: ObjectPropertyVisibility::Private,
-                                value: Value::Integer(3),
+                                value: Value::Long(3),
                             },
                         ],
                     }
@@ -512,13 +519,10 @@ mod tests {
     #[test]
     fn parse_any_value() {
         let cases = [
-            (
-                b"i:-0;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(0))),
-            ),
+            (b"i:-0;".as_slice(), Some((b"".as_slice(), Value::Long(0)))),
             (
                 b"i:3465;".as_slice(),
-                Some((b"".as_slice(), Value::Integer(3465))),
+                Some((b"".as_slice(), Value::Long(3465))),
             ),
             (b"N;".as_slice(), Some((b"".as_slice(), Value::Null))),
             (
@@ -527,15 +531,15 @@ mod tests {
             ),
             (
                 b"i:3465;N;".as_slice(),
-                Some((b"N;".as_slice(), Value::Integer(3465))),
+                Some((b"N;".as_slice(), Value::Long(3465))),
             ),
             (
                 b"d:-10;".as_slice(),
-                Some((b"".as_slice(), Value::Decimal(-10.0))),
+                Some((b"".as_slice(), Value::Double(-10.0))),
             ),
             (
                 b"d:4.123456789;".as_slice(),
-                Some((b"".as_slice(), Value::Decimal(4.123_456_789))),
+                Some((b"".as_slice(), Value::Double(4.123_456_789))),
             ),
             (
                 b"s:12:\"123456\";7890\";".as_slice(),
@@ -550,7 +554,7 @@ mod tests {
                         properties: vec![ObjectProperty {
                             name: b"myProperty".as_slice(),
                             visibility: ObjectPropertyVisibility::Public,
-                            value: Value::Integer(42),
+                            value: Value::Long(42),
                         }],
                     },
                 )),
@@ -560,11 +564,14 @@ mod tests {
                 Some((
                     b"".as_slice(),
                     Value::Array(vec![
-                        (ArrayKey::Integer(0), Value::String(b"foo".as_slice())),
-                        (
-                            ArrayKey::Integer(1),
-                            Value::ValueReference(2.try_into().unwrap()),
-                        ),
+                        ArrayEntry {
+                            key: ArrayKey::Long(0),
+                            value: Value::String(b"foo".as_slice()),
+                        },
+                        ArrayEntry {
+                            key: ArrayKey::Long(1),
+                            value: Value::ValueReference(2.try_into().unwrap()),
+                        },
                     ]),
                 )),
             ),
@@ -616,7 +623,7 @@ mod tests {
                     vec![
                         SessionEntry {
                             key: b"foo",
-                            value: Value::Integer(42),
+                            value: Value::Long(42),
                         },
                     ],
                 ),
@@ -642,7 +649,7 @@ mod tests {
                         },
                         SessionEntry {
                             key: b"foo",
-                            value: Value::Integer(42),
+                            value: Value::Long(42),
                         },
                     ],
                 ),
@@ -657,15 +664,15 @@ mod tests {
                         },
                         SessionEntry {
                             key: b"foo",
-                            value: Value::Integer(42),
+                            value: Value::Long(42),
                         },
                         SessionEntry {
                             key: b"a:1{\"not an array\"}",
                             value: Value::Array(vec![
-                                (
-                                    ArrayKey::String(b"some-value"),
-                                    Value::String(r#""other";"value""#.as_bytes())
-                                )
+                                ArrayEntry {
+                                    key: ArrayKey::String(b"some-value"),
+                                    value: Value::String(r#""other";"value""#.as_bytes()),
+                                }
                             ]),
                         },
                     ],
