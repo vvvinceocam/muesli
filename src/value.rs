@@ -1,7 +1,10 @@
 //! Structures for *raw* representation of deserialized data.
 //!
-//! Largely based on [https://www.phpinternalsbook.com/php5/classes_objects/serialization.html](https://www.phpinternalsbook.com/php5/classes_objects/serialization.html)
+//! Largely based on [PHP Internals Book][phpinternals]
 //!
+//! [phpinternals]: https://www.phpinternalsbook.com/php5/classes_objects/serialization.html
+pub mod conversion;
+
 use std::num::NonZeroUsize;
 
 pub type Session<'a> = Vec<SessionEntry<'a>>;

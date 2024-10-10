@@ -1,18 +1,18 @@
-use muesli::{session_encode, SessionEntry, Value};
+use muesli::{session_encode, SessionEntry};
 
 fn main() {
     let data = vec![
         SessionEntry {
             key: b"foo",
-            value: Value::Long(42),
+            value: 42.into(),
         },
         SessionEntry {
             key: b"bar",
-            value: Value::String(b"baz|qux".as_slice()),
+            value: b"baz|qux".as_slice().into(),
         },
         SessionEntry {
-            key: b"pub",
-            value: Value::Long(1337),
+            key: b"array",
+            value: vec![1, 2, 3, 4, 5].into(),
         },
     ];
 
@@ -20,6 +20,7 @@ fn main() {
     session_encode(&mut session, &data).unwrap();
     assert_eq!(
         session,
-        b"foo|i:42;bar|s:7:\"baz|qux\";pub|i:1337;".as_slice()
+        b"foo|i:42;bar|s:7:\"baz|qux\";array|a:5:{i:0;i:1;i:1;i:2;i:2;i:3;i:3;i:4;i:4;i:5;}"
+            .as_slice()
     );
 }
