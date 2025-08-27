@@ -2,16 +2,16 @@ mod raw;
 
 use winnow::{
     binary::{length_repeat, length_take},
-    combinator::{alt, delimited, empty, repeat, rest, separated_pair, terminated},
+    combinator::{alt, delimited, empty, repeat, separated_pair, terminated},
     error::{ContextError, ParseError, StrContext},
     seq,
-    token::{one_of, take_until},
-    PResult, Parser,
+    token::{one_of, rest, take_until},
+    Result, Parser,
 };
 
 use crate::value::{ArrayKey, ObjectProperty, ObjectPropertyVisibility, SessionEntry, Value};
 
-fn any_value<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn any_value<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     alt((
         value_null,
         value_boolean,
@@ -27,24 +27,24 @@ fn any_value<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
     .parse_next(input)
 }
 
-fn value_null<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_null<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     b"N;".value(Value::Null).parse_next(input)
 }
 
-fn value_boolean<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_boolean<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     delimited(b"b:", one_of(b"01"), b';')
         .map(|bool| Value::Boolean(bool == b'1'))
         .parse_next(input)
 }
 
-fn value_integer<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_integer<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     delimited(b"i:", raw::signed_integer, b';')
         .parse_to()
         .map(Value::Integer)
         .parse_next(input)
 }
 
-fn value_decimal<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_decimal<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     delimited(
         b"d:",
         alt((
@@ -59,13 +59,13 @@ fn value_decimal<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
     .parse_next(input)
 }
 
-fn value_string<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_string<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     delimited(b"s:", raw::sized_string, b';')
         .map(Value::String)
         .parse_next(input)
 }
 
-fn array_key<'s>(input: &mut &'s [u8]) -> PResult<ArrayKey<'s>> {
+fn array_key<'s>(input: &mut &'s [u8]) -> Result<ArrayKey<'s>> {
     alt((
         delimited(b"i:", raw::signed_integer, b';')
             .parse_to()
@@ -75,11 +75,11 @@ fn array_key<'s>(input: &mut &'s [u8]) -> PResult<ArrayKey<'s>> {
     .parse_next(input)
 }
 
-fn array_pair<'s>(input: &mut &'s [u8]) -> PResult<(ArrayKey<'s>, Value<'s>)> {
+fn array_pair<'s>(input: &mut &'s [u8]) -> Result<(ArrayKey<'s>, Value<'s>)> {
     (array_key, any_value).parse_next(input)
 }
 
-fn value_array<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_array<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     delimited(
         b"a:",
         length_repeat(terminated(raw::size, b":{"), array_pair),
@@ -89,21 +89,21 @@ fn value_array<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
     .parse_next(input)
 }
 
-fn value_reference_to_value<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_reference_to_value<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     delimited(b"R:", raw::unsigned_integer, b';')
         .parse_to()
         .map(Value::ValueReference)
         .parse_next(input)
 }
 
-fn value_reference_to_object<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_reference_to_object<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     delimited(b"r:", raw::unsigned_integer, b';')
         .parse_to()
         .map(Value::ObjectReference)
         .parse_next(input)
 }
 
-fn object_property_name<'s>(input: &mut &'s [u8]) -> PResult<(ObjectPropertyVisibility, &'s [u8])> {
+fn object_property_name<'s>(input: &mut &'s [u8]) -> Result<(ObjectPropertyVisibility, &'s [u8])> {
     use ObjectPropertyVisibility::{Private, Protected, Public};
 
     delimited(
@@ -122,7 +122,7 @@ fn object_property_name<'s>(input: &mut &'s [u8]) -> PResult<(ObjectPropertyVisi
     .parse_next(input)
 }
 
-fn object_property<'s>(input: &mut &'s [u8]) -> PResult<ObjectProperty<'s>> {
+fn object_property<'s>(input: &mut &'s [u8]) -> Result<ObjectProperty<'s>> {
     (object_property_name, any_value)
         .map(|((visibility, name), value)| ObjectProperty {
             visibility,
@@ -132,7 +132,7 @@ fn object_property<'s>(input: &mut &'s [u8]) -> PResult<ObjectProperty<'s>> {
         .parse_next(input)
 }
 
-fn value_object<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_object<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     seq!(
         _: b"O:",
         raw::sized_string
@@ -151,7 +151,7 @@ fn value_object<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
     .parse_next(input)
 }
 
-fn value_custom_object<'s>(input: &mut &'s [u8]) -> PResult<Value<'s>> {
+fn value_custom_object<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
     seq!(
         _: b"C:",
         raw::sized_string
@@ -175,7 +175,7 @@ pub fn unserialize(input: &[u8]) -> Result<Value, ParseError<&[u8], ContextError
     any_value.parse(input)
 }
 
-fn session_key<'s>(input: &mut &'s [u8]) -> PResult<&'s [u8]> {
+fn session_key<'s>(input: &mut &'s [u8]) -> Result<&'s [u8]> {
     take_until(0.., '|').parse_next(input)
 }
 

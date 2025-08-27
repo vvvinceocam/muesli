@@ -2,28 +2,28 @@ use winnow::{
     binary::length_take,
     combinator::{opt, terminated},
     token::take_while,
-    PResult, Parser,
+    Result, Parser,
 };
 
-pub(crate) fn unsigned_integer<'s>(input: &mut &'s [u8]) -> PResult<&'s [u8]> {
+pub(crate) fn unsigned_integer<'s>(input: &mut &'s [u8]) -> Result<&'s [u8]> {
     take_while(1.., b'0'..=b'9').parse_next(input)
 }
 
-pub(crate) fn signed_integer<'s>(input: &mut &'s [u8]) -> PResult<&'s [u8]> {
+pub(crate) fn signed_integer<'s>(input: &mut &'s [u8]) -> Result<&'s [u8]> {
     (opt(b'-'), unsigned_integer).take().parse_next(input)
 }
 
-pub(crate) fn float<'s>(input: &mut &'s [u8]) -> PResult<&'s [u8]> {
+pub(crate) fn float<'s>(input: &mut &'s [u8]) -> Result<&'s [u8]> {
     (signed_integer, opt((b'.', unsigned_integer)))
         .take()
         .parse_next(input)
 }
 
-pub(crate) fn size(input: &mut &[u8]) -> PResult<usize> {
+pub(crate) fn size(input: &mut &[u8]) -> Result<usize> {
     unsigned_integer.parse_to().parse_next(input)
 }
 
-pub(crate) fn sized_string<'s>(input: &mut &'s [u8]) -> PResult<&'s [u8]> {
+pub(crate) fn sized_string<'s>(input: &mut &'s [u8]) -> Result<&'s [u8]> {
     terminated(length_take(terminated(size, b":\"")), b'"').parse_next(input)
 }
 
