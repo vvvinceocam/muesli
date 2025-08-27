@@ -6,7 +6,7 @@ use winnow::{
     error::{ContextError, ParseError, StrContext},
     seq,
     token::{one_of, rest, take_until},
-    Result, Parser,
+    Parser, Result,
 };
 
 use crate::value::{ArrayKey, ObjectProperty, ObjectPropertyVisibility, SessionEntry, Value};
@@ -171,7 +171,7 @@ fn value_custom_object<'s>(input: &mut &'s [u8]) -> Result<Value<'s>> {
 /// # Errors
 ///
 /// Will return `Err` if input is not a valid PHP serialize value.
-pub fn unserialize(input: &[u8]) -> Result<Value, ParseError<&[u8], ContextError>> {
+pub fn unserialize(input: &[u8]) -> Result<Value<'_>, ParseError<&[u8], ContextError>> {
     any_value.parse(input)
 }
 
@@ -184,7 +184,9 @@ fn session_key<'s>(input: &mut &'s [u8]) -> Result<&'s [u8]> {
 /// # Errors
 ///
 /// Will return `Err` if input is not a valid PHP session.
-pub fn session_decode(input: &[u8]) -> Result<Vec<SessionEntry>, ParseError<&[u8], ContextError>> {
+pub fn session_decode(
+    input: &[u8],
+) -> Result<Vec<SessionEntry<'_>>, ParseError<&[u8], ContextError>> {
     repeat(
         0..,
         separated_pair(session_key, '|', any_value).map(|(key, value)| SessionEntry { key, value }),

@@ -2,7 +2,7 @@ use winnow::{
     binary::length_take,
     combinator::{opt, terminated},
     token::take_while,
-    Result, Parser,
+    Parser, Result,
 };
 
 pub(crate) fn unsigned_integer<'s>(input: &mut &'s [u8]) -> Result<&'s [u8]> {
