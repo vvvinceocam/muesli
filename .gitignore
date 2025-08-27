@@ -2,6 +2,7 @@
 /target
 /.cargo
 /.rust-src
+Cargo.lock
 
 # devenv
 .devenv*
