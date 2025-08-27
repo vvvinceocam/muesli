@@ -16,7 +16,7 @@ exclude = [
 ]
 
 [dependencies]
-winnow = { version = "0.6.18", features = ["simd"] }
+winnow = { version = "0.7", features = ["simd"] }
 
 [dev-dependencies]
 criterion = "0.5.1"
