@@ -1,6 +1,9 @@
 use std::io::Write;
 
-use crate::value::{ArrayKey, SessionEntry, Value};
+use crate::{
+    value::{ArrayKey, SessionEntry, Value},
+    ObjectPropertyVisibility,
+};
 
 /// Encode data to PHP's `serialize` format
 ///
@@ -54,7 +57,50 @@ pub fn serialize<W: Write>(w: &mut W, value: &Value) -> std::result::Result<usiz
         }
         Value::ValueReference(idx) => w.write(format!("R:{idx};").as_bytes()),
         Value::ObjectReference(idx) => w.write(format!("r:{idx};").as_bytes()),
-        _ => unimplemented!(),
+        Value::Object {
+            class_name,
+            properties,
+        } => {
+            let mut count = 0;
+            count += w.write(format!("O:{}:\"", class_name.len()).as_bytes())?;
+            count += w.write(class_name)?;
+            count += w.write(format!("\":{}:{{", properties.len()).as_bytes())?;
+            for property in properties {
+                use ObjectPropertyVisibility::{Private, Protected, Public};
+
+                match property.visibility {
+                    Public => {
+                        count += w.write(format!("s:{}:\"", property.name.len()).as_bytes())?;
+                    }
+                    Protected => {
+                        count +=
+                            w.write(format!("s:{}:\"\0*\0", property.name.len() + 3).as_bytes())?;
+                    }
+                    Private => {
+                        count += w.write(
+                            format!("s:{}:\"\0", property.name.len() + 2 + class_name.len())
+                                .as_bytes(),
+                        )?;
+                        count += w.write(class_name)?;
+                        count += w.write(b"\0")?;
+                    }
+                }
+                count += w.write(property.name)?;
+                count += w.write(b"\";")?;
+                count += serialize(w, &property.value)?;
+            }
+            count += w.write(b"}")?;
+            Ok(count)
+        }
+        Value::CustomObject { class_name, data } => {
+            let mut count = 0;
+            count += w.write(format!("C:{}:\"", class_name.len()).as_bytes())?;
+            count += w.write(class_name)?;
+            count += w.write(format!("\":{}:{{", data.len()).as_bytes())?;
+            count += w.write(data)?;
+            count += w.write(b"}")?;
+            Ok(count)
+        }
     }
 }
 
@@ -78,9 +124,11 @@ pub fn session_encode<W: Write>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::num::NonZeroUsize;
+
+    use crate::ObjectProperty;
+
+    use super::*;
 
     fn run_encode_cases(cases: &[(Value, &[u8])]) {
         let mut buffer = Vec::<u8>::new();
@@ -163,6 +211,52 @@ mod tests {
                 b"r:42;".as_slice(),
             ),
         ];
+        run_encode_cases(&cases);
+    }
+
+    #[test]
+    fn encode_object() {
+        let cases = [
+            (
+                Value::Object {
+                    class_name: b"Test".as_slice(),
+                    properties: vec![
+                        ObjectProperty {
+                            name: b"public".as_slice(),
+                            visibility: ObjectPropertyVisibility::Public,
+                            value: Value::Integer(1),
+                        },
+                        ObjectProperty {
+                            name: b"protected".as_slice(),
+                            visibility: ObjectPropertyVisibility::Protected,
+                            value: Value::Integer(2),
+                        },
+                        ObjectProperty {
+                            name: b"private".as_slice(),
+                            visibility: ObjectPropertyVisibility::Private,
+                            value: Value::Integer(3),
+                        },
+                    ],
+                },
+                b"O:4:\"Test\":3:{s:6:\"public\";i:1;s:12:\"\0*\0protected\";i:2;s:13:\"\0Test\0private\";i:3;}".as_slice(),
+            ),
+            (
+                Value::ObjectReference(NonZeroUsize::new(42).unwrap()),
+                b"r:42;".as_slice(),
+            ),
+        ];
+        run_encode_cases(&cases);
+    }
+
+    #[test]
+    fn encode_custom_object() {
+        let cases = [(
+            Value::CustomObject {
+                class_name: b"CustomSerializableClass".as_slice(),
+                data: b"foobar".as_slice(),
+            },
+            b"C:23:\"CustomSerializableClass\":6:{foobar}".as_slice(),
+        )];
         run_encode_cases(&cases);
     }
 

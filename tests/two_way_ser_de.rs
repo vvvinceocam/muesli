@@ -19,3 +19,13 @@ fn base_session_case() {
 
     assert_eq!(buffer, data);
 }
+
+#[test]
+fn large_session_case() {
+    let data = include_bytes!("data/large.session");
+
+    let mut buffer = Vec::new();
+    session_encode(&mut buffer, &session_decode(data).unwrap()).unwrap();
+
+    assert_eq!(buffer, data);
+}
