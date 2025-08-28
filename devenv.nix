@@ -4,6 +4,7 @@
   packages = with pkgs; [
     # Cargo/Rust tools
     cargo-nextest cargo-watch cargo-audit cargo-license
+    git-cliff cargo-edit cargo-criterion bacon
     gnuplot # required by criterion to graph benchmarks
   ];
 
