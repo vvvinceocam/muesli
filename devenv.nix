@@ -49,6 +49,7 @@
     commitizen.enable = true;
     markdownlint = {
       enable = true;
+      excludes = ["CHANGELOG.md"];
       settings.configuration = {
          MD033 = false;
          MD013 = {

@@ -1,7 +1,7 @@
 [package]
 name = "muesli"
 description = "healthy implementation of PHP's serialization and session formats in Rust"
-version = "0.0.3"
+version = "0.1.0"
 authors = ["vvvince <vvvince@ofcompute.rs>"]
 edition = "2021"
 rust-version = "1.79"
