@@ -4,6 +4,7 @@
   packages = with pkgs; [
     # Cargo/Rust tools
     cargo-nextest cargo-watch cargo-audit cargo-license
+    git-cliff cargo-edit cargo-criterion bacon
     gnuplot # required by criterion to graph benchmarks
   ];
 
@@ -48,6 +49,7 @@
     commitizen.enable = true;
     markdownlint = {
       enable = true;
+      excludes = ["CHANGELOG.md"];
       settings.configuration = {
          MD033 = false;
          MD013 = {
